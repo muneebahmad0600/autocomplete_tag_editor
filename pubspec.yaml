@@ -1,7 +1,7 @@
 name: autocomplete_tag_editor
-description: "A new Flutter package project."
+description: "A Flutter widget for tag input with autocomplete functionality"
 version: 0.0.1
-homepage:
+homepage: https://github.com/muneebahmad0600/autocomplete_tag_editor
 
 environment:
   sdk: ^3.7.0
