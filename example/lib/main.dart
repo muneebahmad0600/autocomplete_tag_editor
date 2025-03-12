@@ -16,26 +16,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const OutlineInputBorder kInputBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(4.0)),
-      borderSide: BorderSide(
-        color: Color.fromARGB(255, 127, 205, 144),
-        width: 0.8,
-      ),
-    );
-
-    const OutlineInputBorder kEnabledBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-      borderSide: BorderSide(color: Colors.grey, width: 0.8),
-    );
-
-    const OutlineInputBorder kFocusedBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-      borderSide: BorderSide(
-        color: Color.fromARGB(255, 127, 205, 144),
-        width: 0.8,
-      ),
-    );
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('Tag Editor Demo')),

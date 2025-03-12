@@ -25,7 +25,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  autocomplete_tag_editor: ^<latest-version>
+  autocomplete_tag_editor: ^1.0.0
 ```
 
 ## Basic Usage
