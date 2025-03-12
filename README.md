@@ -17,6 +17,7 @@ A versatile Flutter tag input widget with autocomplete suggestions and custom ta
 - 🎨 **Customizable UI** - Match your app's theme
 - 🧩 **Overlay Suggestions** - Position-aware dropdown list
 - ✅ **Validation Support** - Built-in input validation
+- ⚡ **Performance** - Efficient filtering and rendering
 
 ## Installation
 
@@ -29,7 +30,7 @@ dependencies:
 
 ## Basic Usage
 
-### String Tags
+### String Tags with Customization
 
 ```dart
 AutoCompleteTagEditor<String>(
@@ -38,6 +39,10 @@ AutoCompleteTagEditor<String>(
   displayValueBuilder: (option) => option,
   allowCustomTags: true,
   onTagsChanged: (tags) => print('Selected tags: $tags'),
+  inputDecoration: InputDecoration(
+    labelText: 'Add Tags',
+    border: OutlineInputBorder(),
+  ),
 )
 ```
 
@@ -60,28 +65,83 @@ AutoCompleteTagEditor<TagData>(
   displayValueBuilder: (option) => option.name,
   allowCustomTags: true,
   onCreateCustomTag: (input) => TagData(Uuid().v4(), input),
-  onTagsChanged: (tags) => print('Custom tags: $tags'),
+)
+```
+
+## Advance Usage
+
+### Custom Tag Design
+
+```dart
+AutoCompleteTagEditor<String>(
+  tagBuilder: (context, tag, onDeleted) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.blue[100],
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(tag),
+        IconButton(
+          icon: const Icon(Icons.close, size: 16),
+          onPressed: onDeleted,
+        ),
+      ],
+    ),
+  ),
+)
+```
+
+### Custom Suggestion Design
+
+```dart
+AutoCompleteTagEditor<String>(
+  suggestionItemBuilder: (context, suggestion, onSelected) => Card(
+    child: ListTile(
+      leading: const Icon(Icons.tag),
+      title: Text(suggestion),
+      trailing: const Icon(Icons.add_circle),
+      onTap: onSelected,
+    ),
+  ),
+)
+```
+
+### Custom Filter Logic
+
+```dart
+AutoCompleteTagEditor<String>(
+  suggestionFilter: (suggestion, query) {
+    // Implement custom filtering logic
+    return suggestion.toLowerCase().startsWith(query.toLowerCase());
+  },
 )
 ```
 
 ## Parameters
 
-| Parameter             | Type                     | Required | Description                                                                |
-|-----------------------|--------------------------|----------|----------------------------------------------------------------------------|
-| suggestions           | List<T>                  | Yes      | Available options for autocomplete                                         |
-| value                 | List<T>                  | Yes      | Initially selected tags                                                    |
-| displayValueBuilder   | DisplayValueBuilder<T>   | Yes      | Converts T instance to display string                                      |
-| inputDecoration       | InputDecoration          | No       | Decoration for the input field                                             |
-| allowCustomTags       | bool                     | No       | Enable creation of tags not in suggestions (default: false)                |
-| onCreateCustomTag     | CreateCustomTag<T>       | No       | Required when using non-String types with allowCustomTags=true             |
-| onTagsChanged         | ValueChanged<List<T>>    | No       | Callback when tags change                                                  |
+| Parameter             | Type                     | Required | Description                                                    |
+| --------------------- | ------------------------ | -------- | -------------------------------------------------------------- |
+| suggestions           | List<T>                  | No       | Available options for autocomplete                             |
+| value                 | List<T>                  | No       | Initially selected tags                                        |
+| displayValueBuilder   | DisplayValueBuilder<T>   | Yes\*    | Converts T instance to display string                          |
+| inputDecoration       | InputDecoration          | No       | Decoration for the input field                                 |
+| allowCustomTags       | bool                     | No       | Enable creation of tags not in suggestions (default: false)    |
+| onCreateCustomTag     | CreateCustomTag<T>       | No       | Required when using non-String types with allowCustomTags=true |
+| onTagsChanged         | ValueChanged<List<T>>    | No       | Callback when tags change                                      |
+| tagBuilder            | TagBuilder<T>            | No       | Custom widget builder for tags                                 |
+| suggestionItemBuilder | SuggestionItemBuilder<T> | No       | Custom widget builder for suggestion items                     |
+| suggestionFilter      | SuggestionFilter<T>      | No       | Custom filtering logic for suggestions                         |
 
 ### Important Notes
+
 ⚠️ Type Safety Requirements
 
 - When using custom types (T != String) with allowCustomTags: true,
-you must provide onCreateCustomTag
-- `displayValueBuilder` must be provided for all types
+  you must provide onCreateCustomTag
+- `displayValueBuilder` must be provided for custom Types
 
 ### 💡 UI Considerations
 
@@ -95,6 +155,7 @@ you must provide onCreateCustomTag
 - Use onTagsChanged to track tag additions/removals
 
 ## Example App
+
 See the `/example` directory for a complete implementation. The example demonstrates:
 
 - String tag implementation
@@ -106,6 +167,7 @@ See the `/example` directory for a complete implementation. The example demonstr
 <!-- Add video demo here --><!-- ![Demo Video](demo.mp4) -->
 
 ## Contributing
+
 Contributions are welcome! Please follow these steps:
 
 - Fork the repository

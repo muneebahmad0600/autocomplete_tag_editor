@@ -1,68 +1,132 @@
+// Copyright 2023 https://github.com/muneebahmad0600. All rights reserved.
+// Use of this source code is governed by a MIT-style license that can be
+// found in the LICENSE file.
+
 import 'package:flutter/material.dart';
 
-/// Signature for building display strings from generic type [T]
+/// A comprehensive tag input widget with autocomplete suggestions and custom tag creation capabilities.
+///
+/// Features:
+/// - Supports both String and custom object types for tags
+/// - Automatic suggestions filtering as users type
+/// - Customizable tag chips and suggestion items
+/// - Dynamic overlay positioning
+/// - Custom tag creation with validation
+/// - Responsive layout with tag wrapping
+///
+/// Usage:
+/// - For String tags: Provide [suggestions] and set [allowCustomTags] as needed
+/// - For custom types: Implement [displayValueBuilder] and [onCreateCustomTag]
+/// - Customize appearance using [tagBuilder] and [suggestionItemBuilder]
+
+// region: Type Definitions
+/// Converts a [T] instance to its display string representation
 typedef DisplayValueBuilder<T> = String Function(T option);
 
-/// Signature for creating custom tags of type [T] from string input
+/// Creates a [T] instance from raw string input for custom tags
 typedef CreateCustomTag<T> = T Function(String input);
 
+/// Builds custom tag chip widgets
+typedef TagBuilder<T> =
+    Widget Function(BuildContext context, T tag, VoidCallback onDeleted);
+
+/// Builds custom suggestion list items
+typedef SuggestionItemBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      T suggestion,
+      VoidCallback onSelected,
+    );
+
+/// Custom filter function for suggestions
+typedef SuggestionFilter<T> = bool Function(T suggestion, String query);
+// endregion
+
+// region: Main Widget
+/// A versatile tag input widget with autocomplete capabilities
 class AutoCompleteTagEditor<T> extends StatefulWidget {
-  /// List of available suggestions for autocomplete
+  /// Available suggestions for autocompletion
   final List<T> suggestions;
 
-  /// Initially selected tags
+  /// Initially selected tags when widget is first rendered
   final List<T> value;
 
-  /// Decoration for the input field
+  /// Decoration for the underlying input field
   final InputDecoration inputDecoration;
 
-  /// Called when the list of selected tags changes
+  /// Callback when the selected tags list changes
   final ValueChanged<List<T>>? onTagsChanged;
 
-  /// Converts [T] item to display string
-  final DisplayValueBuilder<T> displayValueBuilder;
+  /// Converts [T] to display string (required for non-String types)
+  final DisplayValueBuilder<T>? displayValueBuilder;
 
-  /// Whether to allow creating tags not in suggestions
+  /// Enables creation of tags not present in [suggestions]
   final bool allowCustomTags;
 
-  /// Creates [T] from custom string input. Required when [T] is not String
-  /// and [allowCustomTags] is true
+  /// Creates [T] from raw string input (required for non-String custom tags)
   final CreateCustomTag<T>? onCreateCustomTag;
+
+  /// Custom builder for tag chips
+  final TagBuilder<T>? tagBuilder;
+
+  /// Custom builder for suggestion list items
+  final SuggestionItemBuilder<T>? suggestionItemBuilder;
+
+  /// Custom filter logic for suggestions
+  final SuggestionFilter<T>? suggestionFilter;
 
   const AutoCompleteTagEditor({
     super.key,
-    required this.suggestions,
-    required this.value,
-    required this.displayValueBuilder,
+    this.suggestions = const [],
+    this.value = const [],
+    this.displayValueBuilder,
     this.inputDecoration = const InputDecoration(),
     this.allowCustomTags = false,
     this.onTagsChanged,
     this.onCreateCustomTag,
+    this.tagBuilder,
+    this.suggestionItemBuilder,
+    this.suggestionFilter,
   }) : assert(
          !allowCustomTags || T == String || onCreateCustomTag != null,
          'When using custom types with allowCustomTags=true, '
          'you must provide the onCreateCustomTag callback',
        ),
        assert(
-         T == String || onCreateCustomTag == null || allowCustomTags,
-         'onCreateCustomTag should only be provided when allowCustomTags=true',
+         T == String || displayValueBuilder != null,
+         'displayValueBuilder must be provided for non-String types',
        );
 
   @override
   AutoCompleteTagEditorState<T> createState() =>
       AutoCompleteTagEditorState<T>();
 }
+// endregion
 
+// region: Widget State
 class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
-  // Add a key for tracking the composited target
+  /// Key for tracking the widget's position in the layout
   final GlobalKey _compositedKey = GlobalKey();
+
+  /// Controller for the text input field
   final TextEditingController _controller = TextEditingController();
+
+  /// Focus node for managing input focus state
   final FocusNode _focusNode = FocusNode();
+
+  /// Layer link for connecting the widget to the overlay
   final LayerLink _layerLink = LayerLink();
+
+  /// List of currently selected tags
   final List<T> _selectedTags = [];
+
+  /// Duration for overlay animations
   final Duration _animationDuration = const Duration(milliseconds: 200);
 
+  /// Overlay entry for the suggestions list
   OverlayEntry? _overlayEntry;
+
+  /// Current text input value
   String _currentInput = '';
 
   @override
@@ -91,7 +155,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     }
   }
 
-  /// Handles focus changes and overlay visibility
+  /// Handles focus changes to show/hide suggestions overlay
   void _handleFocusChange() {
     if (_focusNode.hasFocus) {
       _showOverlay();
@@ -102,23 +166,22 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     if (mounted) setState(() {});
   }
 
-  /// Shows suggestions overlay
+  /// Displays the suggestions overlay
   void _showOverlay() {
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-  /// Hides suggestions overlay
+  /// Hides the suggestions overlay
   void _hideOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
 
-  /// Creates overlay entry for suggestions list
+  /// Creates the overlay entry with dynamic positioning
   OverlayEntry _createOverlayEntry() {
     return OverlayEntry(
       builder: (context) {
-        // Get current render box position
         final renderBox =
             _compositedKey.currentContext?.findRenderObject() as RenderBox?;
         if (renderBox == null) return Container();
@@ -128,7 +191,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
 
         return Positioned(
           left: offset.dx,
-          top: offset.dy + size.height + 4, // 4px margin
+          top: offset.dy + size.height + 4,
           width: size.width,
           child: _buildSuggestions(),
         );
@@ -136,7 +199,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Builds suggestions list widget
+  /// Builds the suggestions list widget
   Widget _buildSuggestions() {
     final suggestions = _getFilteredSuggestions();
 
@@ -152,12 +215,12 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Determines if we should show the empty state prompting for new tag creation
+  /// Determines if empty state should be shown
   bool _shouldShowEmptyState(List<T> suggestions) {
     return _controller.text.isNotEmpty && suggestions.isEmpty;
   }
 
-  /// Builds empty state widget when no suggestions match
+  /// Builds the empty state widget
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -165,7 +228,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Builds list of suggestion tiles
+  /// Builds the list of suggestion items
   Widget _buildSuggestionList(List<T> suggestions) {
     return ListView(
       padding: EdgeInsets.zero,
@@ -174,25 +237,40 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Builds individual suggestion list tile
+  /// Builds individual suggestion list items
   Widget _buildSuggestionTile(T option) {
-    return ListTile(
-      dense: true,
-      title: Text(widget.displayValueBuilder(option)),
-      onTap: () => _addTag(option),
-    );
+    return widget.suggestionItemBuilder?.call(
+          context,
+          option,
+          () => _addTag(option),
+        ) ??
+        ListTile(
+          dense: true,
+          title: Text(
+            widget.displayValueBuilder?.call(option) ?? option.toString(),
+          ),
+          onTap: () => _addTag(option),
+        );
   }
 
-  /// Filters suggestions based on current input and selected tags
+  /// Filters suggestions based on current input and selection
   List<T> _getFilteredSuggestions() {
     return widget.suggestions.where((tag) {
-      final tagText = widget.displayValueBuilder(tag).toLowerCase();
-      return !_selectedTags.contains(tag) &&
-          tagText.contains(_currentInput.toLowerCase());
+      if (_selectedTags.contains(tag)) return false;
+
+      return widget.suggestionFilter?.call(tag, _currentInput) ??
+          _defaultFilter(tag);
     }).toList();
   }
 
-  /// Adds tag to selection and updates state
+  /// Default filter using display values
+  bool _defaultFilter(T tag) {
+    final displayValue =
+        widget.displayValueBuilder?.call(tag) ?? tag.toString();
+    return displayValue.toLowerCase().contains(_currentInput.toLowerCase());
+  }
+
+  /// Adds a tag to the selection
   void _addTag(T tag) {
     setState(() {
       _selectedTags.add(tag);
@@ -202,11 +280,11 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     _notifyTagsChanged();
     _focusNode.requestFocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayEntry?.markNeedsBuild(); // Force overlay reposition
+      _overlayEntry?.markNeedsBuild();
     });
   }
 
-  /// Handles text input changes and automatic tag creation
+  /// Handles text input changes
   void _handleTextInput(String text) {
     setState(() => _currentInput = text);
     _overlayEntry?.markNeedsBuild();
@@ -216,7 +294,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     }
   }
 
-  /// Attempts to create tag from current input
+  /// Processes tag creation from text input
   void _handleTagCreation(String text) {
     if (text.isEmpty) return;
 
@@ -234,15 +312,17 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
   /// Finds existing tag matching input text
   T? _findExistingTag(String text) {
     try {
-      return widget.suggestions.firstWhere(
-        (tag) => widget.displayValueBuilder(tag) == text,
-      );
+      return widget.suggestions.firstWhere((tag) {
+        final displayValue =
+            widget.displayValueBuilder?.call(tag) ?? tag.toString();
+        return displayValue == text;
+      });
     } on StateError {
       return null;
     }
   }
 
-  /// Handles custom tag creation logic
+  /// Creates custom tag from input text
   void _createCustomTag(String text) {
     final tag =
         widget.onCreateCustomTag != null
@@ -252,7 +332,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     _addTag(tag);
   }
 
-  /// Notifies parent of tag changes
+  /// Notifies parent widget about tag changes
   void _notifyTagsChanged() {
     widget.onTagsChanged?.call(List<T>.from(_selectedTags));
   }
@@ -280,31 +360,32 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Handles tap gesture for focus management
+  /// Handles tap events to focus the input
   void _handleTap() {
     if (!_focusNode.hasFocus) {
       _focusNode.requestFocus();
     }
   }
 
-  /// Builds individual tag chip
+  /// Builds individual tag chips
   Widget _buildChip(T tag) {
-    return Chip(
-      label: Text(widget.displayValueBuilder(tag)),
-      onDeleted: () => _removeTag(tag),
-    );
+    return widget.tagBuilder?.call(context, tag, () => _removeTag(tag)) ??
+        Chip(
+          label: Text(widget.displayValueBuilder!(tag)),
+          onDeleted: () => _removeTag(tag),
+        );
   }
 
-  /// Removes tag from selection
+  /// Removes a tag from selection
   void _removeTag(T tag) {
     setState(() => _selectedTags.remove(tag));
     _notifyTagsChanged();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayEntry?.markNeedsBuild(); // Force overlay reposition
+      _overlayEntry?.markNeedsBuild();
     });
   }
 
-  /// Builds input field with visibility management
+  /// Builds the input field widget
   Widget _buildInputField() {
     return Visibility(
       maintainState: true,
@@ -313,14 +394,15 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
       visible: _focusNode.hasFocus,
       child: AnimatedSize(
         duration: _animationDuration,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: 70,
-            maxWidth: 150,
-            minHeight: 30,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 50,
+              maxWidth: 120,
+              minHeight: 25,
+              maxHeight: 40,
+            ),
             child: EditableText(
               controller: _controller,
               focusNode: _focusNode,
@@ -342,3 +424,4 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 }
+// endregion

@@ -46,41 +46,77 @@ class MyApp extends StatelessWidget {
             child: Column(
               children: [
                 // String example
-                AutoCompleteTagEditor<String?>(
+                AutoCompleteTagEditor<String>(
                   suggestions: ['Flutter', 'Dart', 'Firebase'],
-                  inputDecoration: InputDecoration(
-                    border: kInputBorder,
-                    focusedBorder: kFocusedBorder,
-                    enabledBorder: kEnabledBorder,
-                    labelStyle: TextStyle(fontSize: 16.0),
-                    hintStyle: TextStyle(fontSize: 10.0),
-                    label: Text('Tags'),
-                  ),
-                  value: ['Flutter'],
-                  displayValueBuilder: (option) => option ?? '',
+                  value: const ['Flutter'],
+                  displayValueBuilder: (option) => option,
                   allowCustomTags: true,
-                  onCreateCustomTag: (input) => input,
-                  onTagsChanged: (value) => print('Custom tag: $value'),
+                  onTagsChanged: (tags) => debugPrint('Selected tags: $tags'),
+                  inputDecoration: InputDecoration(
+                    labelText: 'Add Tags',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 40),
 
                 // Custom type example
-                // AutoCompleteTagEditor<TagData?>(
-                //   tags: [TagData('1', 'Mobile'), TagData('2', 'Web')],
-                //   initialData: [],
-                //   displayStringForOption: (option) => option?.name ?? '',
-                //   onCreateCustomTag: (input) => TagData(Uuid().v4(), input),
-                //   allowCustomTags: true,
-                // ),
-                TextField(
-                  decoration: InputDecoration(
-                    border: kInputBorder,
-                    focusedBorder: kFocusedBorder,
-                    enabledBorder: kEnabledBorder,
-                    labelStyle: TextStyle(fontSize: 16.0),
-                    hintStyle: TextStyle(fontSize: 10.0),
-                    isDense: true,
-                  ),
+                AutoCompleteTagEditor<TagData>(
+                  suggestions: [TagData('1', 'Mobile'), TagData('2', 'Web')],
+                  value: const [],
+                  displayValueBuilder: (option) => option.name,
+                  allowCustomTags: true,
+                  onCreateCustomTag: (input) => TagData(Uuid().v4(), input),
+                ),
+                const SizedBox(height: 40),
+
+                // Custom Tag Design
+                AutoCompleteTagEditor<String>(
+                  tagBuilder:
+                      (context, tag, onDeleted) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(tag),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: onDeleted,
+                            ),
+                          ],
+                        ),
+                      ),
+                ),
+                const SizedBox(height: 40),
+
+                // Custom Suggestion Design
+                AutoCompleteTagEditor<String>(
+                  suggestionItemBuilder:
+                      (context, suggestion, onSelected) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.tag),
+                          title: Text(suggestion),
+                          trailing: const Icon(Icons.add_circle),
+                          onTap: onSelected,
+                        ),
+                      ),
+                ),
+                const SizedBox(height: 40),
+
+                // Custom Filter Logic
+                AutoCompleteTagEditor<String>(
+                  suggestionFilter: (suggestion, query) {
+                    // Implement custom filtering logic
+                    return suggestion.toLowerCase().startsWith(
+                      query.toLowerCase(),
+                    );
+                  },
                 ),
               ],
             ),
