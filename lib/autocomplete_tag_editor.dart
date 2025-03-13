@@ -371,7 +371,9 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
   Widget _buildChip(T tag) {
     return widget.tagBuilder?.call(context, tag, () => _removeTag(tag)) ??
         Chip(
-          label: Text(widget.displayValueBuilder!(tag)),
+          label: Text(
+            T == String ? tag.toString() : widget.displayValueBuilder!(tag),
+          ),
           onDeleted: () => _removeTag(tag),
         );
   }

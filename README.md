@@ -6,7 +6,7 @@
 A versatile Flutter tag input widget with autocomplete suggestions and custom tag creation capabilities.
 
 <!-- Add screenshot here -->
-<!-- ![Demo Screenshot](screenshot.png) -->
+![Example](media/example.png)
 
 ## Features
 
