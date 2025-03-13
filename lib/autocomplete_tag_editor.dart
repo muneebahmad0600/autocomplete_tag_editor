@@ -51,8 +51,11 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
   /// Initially selected tags when widget is first rendered
   final List<T> value;
 
-  /// Decoration for the underlying input field
+  /// Decoration for the inner input field
   final InputDecoration inputDecoration;
+
+  // Text style for the innet input field
+  final TextStyle? textStyle;
 
   /// Callback when the selected tags list changes
   final ValueChanged<List<T>>? onTagsChanged;
@@ -81,6 +84,7 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
     this.value = const [],
     this.displayValueBuilder,
     this.inputDecoration = const InputDecoration(),
+    this.textStyle,
     this.allowCustomTags = false,
     this.onTagsChanged,
     this.onCreateCustomTag,
@@ -409,8 +413,12 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
               controller: _controller,
               focusNode: _focusNode,
               onChanged: _handleTextInput,
-              backgroundCursorColor: Colors.grey,
-              style: const TextStyle(color: Colors.black, fontSize: 16),
+              backgroundCursorColor: Colors.red,
+              style:
+                  widget.textStyle ??
+                  Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
               cursorColor:
                   widget.inputDecoration.focusedBorder?.borderSide.color ??
                   Theme.of(context).colorScheme.primary,
