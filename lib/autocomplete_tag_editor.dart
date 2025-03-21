@@ -164,7 +164,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     if (_focusNode.hasFocus) {
       _showOverlay();
     } else {
-      _controller.clear();
+      _handleTagCreation(_controller.text);
       _hideOverlay();
     }
     if (mounted) setState(() {});
@@ -282,7 +282,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
       _controller.clear();
     });
     _notifyTagsChanged();
-    _focusNode.requestFocus();
+    // _focusNode.requestFocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _overlayEntry?.markNeedsBuild();
     });
@@ -293,8 +293,8 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     setState(() => _currentInput = text);
     _overlayEntry?.markNeedsBuild();
 
-    if (text.endsWith(' ')) {
-      _handleTagCreation(text.trim());
+    if (text.endsWith(',')) {
+      _handleTagCreation(text.substring(0, text.length - 1));
     }
   }
 
