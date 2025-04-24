@@ -48,6 +48,16 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
   /// Available suggestions for autocompletion
   final List<T> suggestions;
 
+  /// Maximum number of suggestions to display
+  /// (default: 5)
+  final int maxSuggestionCount;
+
+  /// Minimum space required below the input field to display suggestions
+  /// (default: 300)
+  /// This is used to determine if the suggestions should be displayed above or below the input field.
+  /// If the available space below is less than this value, the suggestions will be displayed above.
+  final int minimumSpaceRequiredBelow;
+
   /// Initially selected tags when widget is first rendered
   final List<T> value;
 
@@ -81,6 +91,8 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
   const AutoCompleteTagEditor({
     super.key,
     this.suggestions = const [],
+    this.maxSuggestionCount = 5,
+    this.minimumSpaceRequiredBelow = 300,
     this.value = const [],
     this.displayValueBuilder,
     this.inputDecoration = const InputDecoration(),
@@ -192,12 +204,30 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
 
         final size = renderBox.size;
         final offset = renderBox.localToGlobal(Offset.zero);
+        final screenHeight = MediaQuery.of(context).size.height;
+
+        // Calculate available space below
+        final spaceBelow = screenHeight - offset.dy - size.height;
+        final hasEnoughSpaceBelow =
+            spaceBelow >
+            widget.minimumSpaceRequiredBelow; // Minimum required space
+
+        // Calculate overlay height constraints
+        final maxHeight =
+            hasEnoughSpaceBelow
+                ? spaceBelow -
+                    16 // Leave some margin
+                : offset.dy - 16; // Use space above
 
         return Positioned(
           left: offset.dx,
-          top: offset.dy + size.height + 4,
+          top: hasEnoughSpaceBelow ? offset.dy + size.height + 4 : null,
+          bottom: hasEnoughSpaceBelow ? null : screenHeight - offset.dy + 4,
           width: size.width,
-          child: _buildSuggestions(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(child: _buildSuggestions()),
+          ),
         );
       },
     );
@@ -237,7 +267,11 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     return ListView(
       padding: EdgeInsets.zero,
       shrinkWrap: true,
-      children: suggestions.map(_buildSuggestionTile).toList(),
+      children:
+          suggestions
+              .take(widget.maxSuggestionCount)
+              .map(_buildSuggestionTile)
+              .toList(),
     );
   }
 
@@ -356,7 +390,8 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
             constraints: const BoxConstraints(minHeight: 50),
           ),
           child: Wrap(
-            spacing: 4,
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [..._selectedTags.map(_buildChip), _buildInputField()],
           ),
         ),
@@ -400,34 +435,31 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
       visible: _focusNode.hasFocus,
       child: AnimatedSize(
         duration: _animationDuration,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: 50,
-              maxWidth: 120,
-              minHeight: 25,
-              maxHeight: 40,
-            ),
-            child: EditableText(
-              controller: _controller,
-              focusNode: _focusNode,
-              onChanged: _handleTextInput,
-              backgroundCursorColor: Colors.red,
-              style:
-                  widget.textStyle ??
-                  Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-              cursorColor:
-                  widget.inputDecoration.focusedBorder?.borderSide.color ??
-                  Theme.of(context).colorScheme.primary,
-              minLines: 1,
-              maxLines: 1,
-              autofocus: false,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-            ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: 50,
+            maxWidth: 120,
+            minHeight: 25,
+            maxHeight: 40,
+          ),
+          child: EditableText(
+            controller: _controller,
+            focusNode: _focusNode,
+            onChanged: _handleTextInput,
+            backgroundCursorColor: Colors.red,
+            style:
+                widget.textStyle ??
+                Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+            cursorColor:
+                widget.inputDecoration.focusedBorder?.borderSide.color ??
+                Theme.of(context).colorScheme.primary,
+            minLines: 1,
+            maxLines: 1,
+            autofocus: false,
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.done,
           ),
         ),
       ),

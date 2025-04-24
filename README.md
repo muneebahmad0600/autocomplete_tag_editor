@@ -126,14 +126,17 @@ AutoCompleteTagEditor<String>(
 | --------------------- | ------------------------ | -------- | -------------------------------------------------------------- |
 | suggestions           | List<T>                  | No       | Available options for autocomplete                             |
 | value                 | List<T>                  | No       | Initially selected tags                                        |
-| displayValueBuilder   | DisplayValueBuilder<T>   | Yes\*    | Converts T instance to display string                          |
+| displayValueBuilder   | DisplayValueBuilder<T>   | Yes*    | Converts T instance to display string                          |
 | inputDecoration       | InputDecoration          | No       | Decoration for the input field                                 |
+| textStyle            | TextStyle                | No       | Custom text style for the input field                          |
 | allowCustomTags       | bool                     | No       | Enable creation of tags not in suggestions (default: false)    |
 | onCreateCustomTag     | CreateCustomTag<T>       | No       | Required when using non-String types with allowCustomTags=true |
 | onTagsChanged         | ValueChanged<List<T>>    | No       | Callback when tags change                                      |
-| tagBuilder            | TagBuilder<T>            | No       | Custom widget builder for tags                                 |
+| tagBuilder           | TagBuilder<T>            | No       | Custom widget builder for tags                                 |
 | suggestionItemBuilder | SuggestionItemBuilder<T> | No       | Custom widget builder for suggestion items                     |
 | suggestionFilter      | SuggestionFilter<T>      | No       | Custom filtering logic for suggestions                         |
+| maxSuggestionCount   | int                     | No       | Maximum number of suggestions to show (default: 5)             |
+| minimumSpaceRequiredBelow | int                | No       | Minimum space needed below input to show suggestions (default: 300) |
 
 ### Important Notes
 
@@ -143,11 +146,18 @@ AutoCompleteTagEditor<String>(
   you must provide onCreateCustomTag
 - `displayValueBuilder` must be provided for custom Types
 
+### 🎯 Tag Creation Behavior
+
+- Tags can be created by typing and pressing the comma key (,)
+- Tags are also created when the input field loses focus (if allowCustomTags is true)
+- Duplicate tags are prevented automatically
+
 ### 💡 UI Considerations
 
 - The widget uses Flutter's overlay system for suggestions
+- Suggestions list automatically positions above the input if there isn't enough space below (controlled by minimumSpaceRequiredBelow)
 - Input field automatically expands with content
-- Suggestions list positions dynamically based on input field size
+- Maximum suggestions shown can be limited using maxSuggestionCount
 
 ### 🔧 State Management
 
