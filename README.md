@@ -3,7 +3,7 @@
 [![Pub Version](https://img.shields.io/pub/v/autocomplete_tag_editor)](https://pub.dev/packages/autocomplete_tag_editor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A versatile Flutter tag input widget with autocomplete suggestions and custom tag creation capabilities.
+A versatile Flutter tag input widget with autocomplete suggestions, custom tag creation capabilities, and smooth animations.
 
 <!-- Add screenshot here -->
 ![Example](media/example.png)
@@ -25,7 +25,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  autocomplete_tag_editor: ^1.0.0
+  autocomplete_tag_editor: ^1.0.5
 ```
 
 ## Basic Usage
@@ -137,6 +137,14 @@ AutoCompleteTagEditor<String>(
 | suggestionFilter      | SuggestionFilter<T>      | No       | Custom filtering logic for suggestions                         |
 | maxSuggestionCount   | int                     | No       | Maximum number of suggestions to show (default: 5)             |
 | minimumSpaceRequiredBelow | int                | No       | Minimum space needed below input to show suggestions (default: 300) |
+
+### What's New in 1.0.5
+
+- Enhanced animations for better user experience
+- Improved input field visibility and behavior
+- Smooth transitions for tag creation and removal
+- Better focus handling when tapping on input area
+- Improved overlay positioning with smooth animations
 
 ### Important Notes
 

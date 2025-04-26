@@ -120,7 +120,8 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
 // endregion
 
 // region: Widget State
-class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
+class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
+    with SingleTickerProviderStateMixin {
   /// Key for tracking the widget's position in the layout
   final GlobalKey _compositedKey = GlobalKey();
 
@@ -145,11 +146,27 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
   /// Current text input value
   String _currentInput = '';
 
+  /// Tracks if the suggestions overlay is currently visible
+  bool _isOverlayVisible = false;
+
+  /// Animation controller for overlay animations
+  late final AnimationController _animationController;
+  late final Animation<double> _animation;
+
   @override
   void initState() {
     super.initState();
     _selectedTags.addAll(widget.value);
     _focusNode.addListener(_handleFocusChange);
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -157,6 +174,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     _controller.dispose();
+    _animationController.dispose();
     _hideOverlay();
     super.dispose();
   }
@@ -171,6 +189,37 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     }
   }
 
+  /// Displays the suggestions overlay with animation
+  void _showOverlay() {
+    if (_overlayEntry != null) return;
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOverlayVisible = true);
+    _animationController.forward();
+  }
+
+  /// Hides the suggestions overlay with animation
+  void _hideOverlay() {
+    if (_overlayEntry == null) return;
+    _animationController.reverse().then((_) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+      if (mounted) {
+        setState(() => _isOverlayVisible = false);
+      }
+    });
+  }
+
+  /// Toggles the suggestions overlay
+  void _toggleOverlay() {
+    if (_isOverlayVisible) {
+      _hideOverlay();
+    } else {
+      _focusNode.requestFocus();
+      _showOverlay();
+    }
+  }
+
   /// Handles focus changes to show/hide suggestions overlay
   void _handleFocusChange() {
     if (_focusNode.hasFocus) {
@@ -180,18 +229,6 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
       _hideOverlay();
     }
     if (mounted) setState(() {});
-  }
-
-  /// Displays the suggestions overlay
-  void _showOverlay() {
-    _overlayEntry = _createOverlayEntry();
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  /// Hides the suggestions overlay
-  void _hideOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
   }
 
   /// Creates the overlay entry with dynamic positioning
@@ -209,25 +246,43 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
         // Calculate available space below
         final spaceBelow = screenHeight - offset.dy - size.height;
         final hasEnoughSpaceBelow =
-            spaceBelow >
-            widget.minimumSpaceRequiredBelow; // Minimum required space
+            spaceBelow > widget.minimumSpaceRequiredBelow;
 
         // Calculate overlay height constraints
         final maxHeight =
-            hasEnoughSpaceBelow
-                ? spaceBelow -
-                    16 // Leave some margin
-                : offset.dy - 16; // Use space above
+            hasEnoughSpaceBelow ? spaceBelow - 16 : offset.dy - 16;
 
-        return Positioned(
-          left: offset.dx,
-          top: hasEnoughSpaceBelow ? offset.dy + size.height + 4 : null,
-          bottom: hasEnoughSpaceBelow ? null : screenHeight - offset.dy + 4,
-          width: size.width,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            child: SingleChildScrollView(child: _buildSuggestions()),
-          ),
+        final slideOffset = hasEnoughSpaceBelow ? 20.0 : -20.0;
+
+        return AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            return Positioned(
+              left: offset.dx,
+              width: size.width,
+              top:
+                  hasEnoughSpaceBelow
+                      ? offset.dy +
+                          size.height +
+                          4 +
+                          (slideOffset * (1 - _animation.value))
+                      : null,
+              bottom:
+                  hasEnoughSpaceBelow
+                      ? null
+                      : screenHeight -
+                          offset.dy +
+                          4 +
+                          (slideOffset * (1 - _animation.value)),
+              child: FadeTransition(
+                opacity: _animation,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxHeight),
+                  child: SingleChildScrollView(child: _buildSuggestions()),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -388,6 +443,16 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
           isEmpty: _selectedTags.isEmpty && !_focusNode.hasFocus,
           decoration: widget.inputDecoration.copyWith(
             constraints: const BoxConstraints(minHeight: 50),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isOverlayVisible ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                color:
+                    _focusNode.hasFocus
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).hintColor,
+              ),
+              onPressed: _toggleOverlay,
+            ),
           ),
           child: Wrap(
             spacing: 8,
@@ -399,10 +464,15 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>> {
     );
   }
 
-  /// Handles tap events to focus the input
+  /// Handles tap events to focus the input and show suggestions
   void _handleTap() {
     if (!_focusNode.hasFocus) {
       _focusNode.requestFocus();
+    }
+    if (!_isOverlayVisible) {
+      _showOverlay();
+    } else {
+      _hideOverlay();
     }
   }
 
