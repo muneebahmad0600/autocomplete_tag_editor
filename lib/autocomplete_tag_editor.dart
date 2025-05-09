@@ -88,6 +88,9 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
   /// Custom filter logic for suggestions
   final SuggestionFilter<T>? suggestionFilter;
 
+  /// Callback when the input field focus changes
+  final ValueChanged<bool>? onFocusChange;
+
   const AutoCompleteTagEditor({
     super.key,
     this.suggestions = const [],
@@ -103,6 +106,7 @@ class AutoCompleteTagEditor<T> extends StatefulWidget {
     this.tagBuilder,
     this.suggestionItemBuilder,
     this.suggestionFilter,
+    this.onFocusChange,
   }) : assert(
          !allowCustomTags || T == String || onCreateCustomTag != null,
          'When using custom types with allowCustomTags=true, '
@@ -153,6 +157,13 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
   late final AnimationController _animationController;
   late final Animation<double> _animation;
 
+  /// Tracks if this is the first tap on the widget
+  bool _isFirstTap = true;
+
+  /// Cached filtered suggestions
+  List<T>? _cachedSuggestions;
+  String? _lastQuery;
+
   @override
   void initState() {
     super.initState();
@@ -174,8 +185,11 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     _controller.dispose();
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
     _animationController.dispose();
-    _hideOverlay();
     super.dispose();
   }
 
@@ -183,10 +197,14 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
   void didUpdateWidget(AutoCompleteTagEditor<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.suggestions != widget.suggestions) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cachedSuggestions = null; // Invalidate cache
+      if (mounted && _overlayEntry != null) {
         _overlayEntry?.markNeedsBuild();
-      });
+      }
     }
+    _selectedTags
+      ..clear()
+      ..addAll(widget.value);
   }
 
   /// Displays the suggestions overlay with animation
@@ -201,21 +219,35 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
   /// Hides the suggestions overlay with animation
   void _hideOverlay() {
     if (_overlayEntry == null) return;
-    _animationController.reverse().then((_) {
+    if (!mounted) return;
+
+    if (_animationController.isAnimating) {
+      _animationController.stop();
+    }
+
+    if (_animationController.status != AnimationStatus.dismissed &&
+        !_animationController.isDismissed) {
+      _animationController.reverse().then((_) {
+        if (mounted) {
+          _overlayEntry?.remove();
+          _overlayEntry = null;
+          setState(() => _isOverlayVisible = false);
+        }
+      });
+    } else {
       _overlayEntry?.remove();
       _overlayEntry = null;
       if (mounted) {
         setState(() => _isOverlayVisible = false);
       }
-    });
+    }
   }
 
-  /// Toggles the suggestions overlay
+  /// Toggles the suggestions overlay via suffix icon
   void _toggleOverlay() {
     if (_isOverlayVisible) {
       _hideOverlay();
     } else {
-      _focusNode.requestFocus();
       _showOverlay();
     }
   }
@@ -226,9 +258,14 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
       _showOverlay();
     } else {
       _handleTagCreation(_controller.text);
-      _hideOverlay();
+      if (_isOverlayVisible) {
+        _hideOverlay();
+      }
+      // Reset first tap tracking when focus is lost
+      _isFirstTap = true;
     }
     if (mounted) setState(() {});
+    widget.onFocusChange?.call(_focusNode.hasFocus);
   }
 
   /// Creates the overlay entry with dynamic positioning
@@ -242,11 +279,19 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
         final size = renderBox.size;
         final offset = renderBox.localToGlobal(Offset.zero);
         final screenHeight = MediaQuery.of(context).size.height;
+        final viewInsets = MediaQuery.of(context).viewInsets;
+        final isKeyboardOpen = viewInsets.bottom > 0;
+        final keyboardHeight = viewInsets.bottom;
 
-        // Calculate available space below
-        final spaceBelow = screenHeight - offset.dy - size.height;
+        // Calculate available space below considering keyboard
+        final spaceBelow =
+            screenHeight -
+            offset.dy -
+            size.height -
+            (isKeyboardOpen ? keyboardHeight : 0);
         final hasEnoughSpaceBelow =
-            spaceBelow > widget.minimumSpaceRequiredBelow;
+            spaceBelow > widget.minimumSpaceRequiredBelow ||
+            (isKeyboardOpen && spaceBelow > keyboardHeight);
 
         // Calculate overlay height constraints
         final maxHeight =
@@ -264,7 +309,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
                   hasEnoughSpaceBelow
                       ? offset.dy +
                           size.height +
-                          4 +
+                          10 +
                           (slideOffset * (1 - _animation.value))
                       : null,
               bottom:
@@ -272,7 +317,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
                       ? null
                       : screenHeight -
                           offset.dy +
-                          4 +
+                          10 +
                           (slideOffset * (1 - _animation.value)),
               child: FadeTransition(
                 opacity: _animation,
@@ -348,12 +393,19 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
 
   /// Filters suggestions based on current input and selection
   List<T> _getFilteredSuggestions() {
-    return widget.suggestions.where((tag) {
-      if (_selectedTags.contains(tag)) return false;
+    if (_currentInput == _lastQuery && _cachedSuggestions != null) {
+      return _cachedSuggestions!;
+    }
 
-      return widget.suggestionFilter?.call(tag, _currentInput) ??
-          _defaultFilter(tag);
-    }).toList();
+    _lastQuery = _currentInput;
+    _cachedSuggestions =
+        widget.suggestions.where((tag) {
+          if (_selectedTags.contains(tag)) return false;
+          return widget.suggestionFilter?.call(tag, _currentInput) ??
+              _defaultFilter(tag);
+        }).toList();
+
+    return _cachedSuggestions!;
   }
 
   /// Default filter using display values
@@ -363,27 +415,38 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
     return displayValue.toLowerCase().contains(_currentInput.toLowerCase());
   }
 
+  /// Handles text input changes
+  void _handleTextInput(String text) {
+    if (_currentInput != text) {
+      setState(() => _currentInput = text);
+      // Only rebuild overlay if text changed
+      _overlayEntry?.markNeedsBuild();
+    }
+
+    if (text.endsWith(',')) {
+      _handleTagCreation(text.substring(0, text.length - 1));
+    }
+  }
+
   /// Adds a tag to the selection
   void _addTag(T tag) {
+    if (!mounted || _selectedTags.contains(tag)) return;
+
     setState(() {
       _selectedTags.add(tag);
       _currentInput = '';
       _controller.clear();
+      _cachedSuggestions = null; // Invalidate cache when tags change
     });
     _notifyTagsChanged();
-    // _focusNode.requestFocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayEntry?.markNeedsBuild();
-    });
-  }
 
-  /// Handles text input changes
-  void _handleTextInput(String text) {
-    setState(() => _currentInput = text);
-    _overlayEntry?.markNeedsBuild();
-
-    if (text.endsWith(',')) {
-      _handleTagCreation(text.substring(0, text.length - 1));
+    // Delay overlay rebuild to next frame
+    if (_overlayEntry != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _overlayEntry?.markNeedsBuild();
+        }
+      });
     }
   }
 
@@ -464,16 +527,20 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
     );
   }
 
-  /// Handles tap events to focus the input and show suggestions
+  /// Handles tap events to focus the input
   void _handleTap() {
-    if (!_focusNode.hasFocus) {
+    if (_isFirstTap) {
+      _isFirstTap = false;
       _focusNode.requestFocus();
+      return;
     }
-    if (!_isOverlayVisible) {
-      _showOverlay();
-    } else {
-      _hideOverlay();
-    }
+
+    _focusNode.unfocus();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   /// Builds individual tag chips
@@ -489,11 +556,20 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
 
   /// Removes a tag from selection
   void _removeTag(T tag) {
-    setState(() => _selectedTags.remove(tag));
-    _notifyTagsChanged();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _overlayEntry?.markNeedsBuild();
+    setState(() {
+      _selectedTags.remove(tag);
+      _cachedSuggestions = null; // Invalidate cache when tags change
     });
+    _notifyTagsChanged();
+
+    // Only rebuild overlay if it's visible
+    if (_overlayEntry != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _overlayEntry?.markNeedsBuild();
+        }
+      });
+    }
   }
 
   /// Builds the input field widget
@@ -516,7 +592,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
             controller: _controller,
             focusNode: _focusNode,
             onChanged: _handleTextInput,
-            backgroundCursorColor: Colors.red,
+            backgroundCursorColor: Colors.transparent,
             style:
                 widget.textStyle ??
                 Theme.of(context).textTheme.bodyMedium!.copyWith(
@@ -530,6 +606,7 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
             autofocus: false,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.done,
+            showCursor: true,
           ),
         ),
       ),

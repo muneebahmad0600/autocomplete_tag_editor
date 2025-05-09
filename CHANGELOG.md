@@ -1,3 +1,12 @@
+## 1.0.6
+* Added `onFocusChange` callback to track input field focus state
+* Improved performance with cached suggestion filtering
+* Enhanced keyboard interaction and overlay positioning when keyboard is visible
+* Added smart first tap detection for better focus management
+* Fixed memory leaks by properly cleaning up overlay entries
+* Improved state management during widget lifecycle
+* Added better error prevention for duplicate tags
+
 ## 1.0.5
 * Enhanced input field animations and visibility behavior
 * Improved overlay positioning and animations

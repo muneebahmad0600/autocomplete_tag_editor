@@ -25,7 +25,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  autocomplete_tag_editor: ^1.0.5
+  autocomplete_tag_editor: ^1.0.6
 ```
 
 ## Basic Usage
@@ -137,14 +137,31 @@ AutoCompleteTagEditor<String>(
 | suggestionFilter      | SuggestionFilter<T>      | No       | Custom filtering logic for suggestions                         |
 | maxSuggestionCount   | int                     | No       | Maximum number of suggestions to show (default: 5)             |
 | minimumSpaceRequiredBelow | int                | No       | Minimum space needed below input to show suggestions (default: 300) |
+| onFocusChange        | ValueChanged<bool>       | No       | Callback when input field focus changes                       |
 
-### What's New in 1.0.5
+### What's New in 1.0.6
 
-- Enhanced animations for better user experience
-- Improved input field visibility and behavior
-- Smooth transitions for tag creation and removal
-- Better focus handling when tapping on input area
-- Improved overlay positioning with smooth animations
+- 🎯 Enhanced Focus Management
+  - Smart focus handling with better tap interactions
+  - New `onFocusChange` callback to track input field focus state
+  - Improved focus restoration after tag operations
+
+- ⚡ Performance Improvements
+  - Cached suggestion filtering for better performance
+  - Smart overlay rebuilds to minimize unnecessary updates
+  - Efficient tag state management
+
+- 🎨 UI/UX Enhancements
+  - Smoother animations for overlay transitions
+  - Better keyboard interaction handling
+  - Improved cursor visibility and styling
+  - Dynamic overlay positioning considering keyboard visibility
+  - More responsive tag operations (add/remove)
+
+- 💪 Stability Improvements
+  - Better state cleanup on widget disposal
+  - More reliable focus and overlay management
+  - Improved handling of widget updates
 
 ### Important Notes
 
@@ -181,8 +198,6 @@ See the `/example` directory for a complete implementation. The example demonstr
 - Custom styling
 - Validation scenarios
 - Error handling
-
-<!-- Add video demo here --><!-- ![Demo Video](demo.mp4) -->
 
 ## Contributing
 
