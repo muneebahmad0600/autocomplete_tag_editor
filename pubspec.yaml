@@ -1,6 +1,6 @@
 name: autocomplete_tag_editor
 description: "A Flutter widget for tag input with autocomplete functionality"
-version: 1.0.6
+version: 1.0.7
 homepage: https://github.com/muneebahmad0600/autocomplete_tag_editor
 repository: https://github.com/muneebahmad0600/autocomplete_tag_editor.git
 license: MIT

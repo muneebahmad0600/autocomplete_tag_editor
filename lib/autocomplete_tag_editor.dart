@@ -158,11 +158,14 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
   late final Animation<double> _animation;
 
   /// Tracks if this is the first tap on the widget
-  bool _isFirstTap = true;
+  // Removed first-tap tracking; always focus immediately on tap.
 
   /// Cached filtered suggestions
   List<T>? _cachedSuggestions;
   String? _lastQuery;
+
+  /// Key to access the underlying EditableTextState for keyboard requests.
+  final GlobalKey<EditableTextState> _editableTextKey = GlobalKey();
 
   @override
   void initState() {
@@ -261,8 +264,6 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
       if (_isOverlayVisible) {
         _hideOverlay();
       }
-      // Reset first tap tracking when focus is lost
-      _isFirstTap = true;
     }
     if (mounted) setState(() {});
     widget.onFocusChange?.call(_focusNode.hasFocus);
@@ -529,18 +530,19 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
 
   /// Handles tap events to focus the input
   void _handleTap() {
-    if (_isFirstTap) {
-      _isFirstTap = false;
+    if (!_focusNode.hasFocus) {
       _focusNode.requestFocus();
-      return;
+    } else {
+      // Place cursor at end if already focused
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+      final state = _editableTextKey.currentState;
+      state?.requestKeyboard();
     }
-
-    _focusNode.unfocus();
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        _focusNode.requestFocus();
-      }
-    });
+    if (!_isOverlayVisible) {
+      _showOverlay();
+    }
   }
 
   /// Builds individual tag chips
@@ -574,39 +576,44 @@ class AutoCompleteTagEditorState<T> extends State<AutoCompleteTagEditor<T>>
 
   /// Builds the input field widget
   Widget _buildInputField() {
-    return Visibility(
-      maintainState: true,
-      maintainSize: false,
-      maintainAnimation: true,
-      visible: _focusNode.hasFocus,
-      child: AnimatedSize(
-        duration: _animationDuration,
+    // Keep the EditableText always mounted so the FocusNode is attached.
+    // Only visually hide it when not focused.
+    return AnimatedSize(
+      duration: _animationDuration,
+      alignment: Alignment.centerLeft,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 120),
+        opacity: _focusNode.hasFocus ? 1 : 0,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minWidth: 50,
-            maxWidth: 120,
+            maxWidth: 140,
             minHeight: 25,
             maxHeight: 40,
           ),
-          child: EditableText(
-            controller: _controller,
-            focusNode: _focusNode,
-            onChanged: _handleTextInput,
-            backgroundCursorColor: Colors.transparent,
-            style:
-                widget.textStyle ??
-                Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-            cursorColor:
-                widget.inputDecoration.focusedBorder?.borderSide.color ??
-                Theme.of(context).colorScheme.primary,
-            minLines: 1,
-            maxLines: 1,
-            autofocus: false,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.done,
-            showCursor: true,
+          child: IgnorePointer(
+            ignoring: !_focusNode.hasFocus,
+            child: EditableText(
+              key: _editableTextKey,
+              controller: _controller,
+              focusNode: _focusNode,
+              onChanged: _handleTextInput,
+              backgroundCursorColor: Colors.transparent,
+              style:
+                  widget.textStyle ??
+                  Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+              cursorColor:
+                  widget.inputDecoration.focusedBorder?.borderSide.color ??
+                  Theme.of(context).colorScheme.primary,
+              minLines: 1,
+              maxLines: 1,
+              autofocus: false,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.done,
+              showCursor: true,
+            ),
           ),
         ),
       ),
